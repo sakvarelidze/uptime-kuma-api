@@ -1502,12 +1502,12 @@ class UptimeKumaApi(object):
 
     def add_monitor_tag(self, tag_id: int, monitor_id: int, value: str = "") -> dict:
         """
-        Add a tag to a monitor.
+        Add a tag to a monitor if it doesn't already exist.
 
         :param int tag_id: Id of the tag.
         :param int monitor_id: Id of the monitor to add the tag to.
         :param str, optional value: Value of the tag., defaults to ""
-        :return: The server response.
+        :return: The server response, or {'msg': 'Tag already exists.'} if skipped.
         :rtype: dict
         :raises UptimeKumaException: If the server returns an error.
 
@@ -1522,10 +1522,17 @@ class UptimeKumaApi(object):
                 'msg': 'Added Successfully.'
             }
         """
+        monitor = self.get_monitor(monitor_id)
+        current_tag_ids = {tag["id"] for tag in monitor.get("tags", [])}
+
+        if tag_id in current_tag_ids:
+            return {"msg": f"Tag {tag_id} already exists on monitor {monitor_id}, skipping."}
+
         r = self._call('addMonitorTag', (tag_id, monitor_id, value))
-        # the monitor list event does not send the updated tags
+        # force refresh cache
         self._event_data[Event.MONITOR_LIST][str(monitor_id)] = self.get_monitor(monitor_id)
         return r
+
 
     # editMonitorTag is unused in uptime-kuma
     # def edit_monitor_tag(self, tag_id: int, monitor_id: int, value=""):
