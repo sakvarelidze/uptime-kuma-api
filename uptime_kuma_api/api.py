@@ -1673,9 +1673,9 @@ class UptimeKumaApi(object):
     @append_docstring(notification_docstring("add"))
     def add_notification(self, **kwargs) -> dict:
         """
-        Add a notification.
+        Add a notification if one with the same name and key config does not already exist.
 
-        :return: The server response.
+        :return: The server response or existing notification.
         :rtype: dict
         :raises UptimeKumaException: If the server returns an error.
 
@@ -1694,10 +1694,24 @@ class UptimeKumaApi(object):
             }
         """
         data = _build_notification_data(**kwargs)
-
         _check_arguments_notification(data)
+
+        existing_notifications = self.get_notifications()
+
+        for notif in existing_notifications:
+            if (
+                notif.get("name") == data["name"]
+                and notif.get("type") == data["type"]
+                and notif.get("config", {}).get("webhookUrl") == data.get("webhookUrl")
+            ):
+                return {
+                    "id": notif["id"],
+                    "msg": f"Notification '{data['name']}' already exists, returning existing."
+                }
+
         with self.wait_for_event(Event.NOTIFICATION_LIST):
             return self._call('addNotification', (data, None))
+
 
     @append_docstring(notification_docstring("edit"))
     def edit_notification(self, id_: int, **kwargs) -> dict:
